@@ -1,0 +1,22 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: settlement-service
+
+  # 1. MongoDB 설정 (Docker와 일치)
+  data:
+    mongodb:
+      uri: mongodb://root:root@localhost:27017/settleflow_settlement?authSource=admin
+
+  # 2. Kafka Consumer 설정
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: settlement-group # 컨슈머 그룹 ID (중요)
+      auto-offset-reset: earliest # 처음부터 읽기 or 최신부터 읽기
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*" # 모든 패키지 신뢰 (DTO 변환 허용)

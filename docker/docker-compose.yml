@@ -1,0 +1,82 @@
+# version: '3.8' <-- 이 라인은 이제 필요 없습니다 (삭제됨)
+
+services:
+  # 1. Zookeeper (Confluent Stable 7.5.0)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: settleflow-zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - settleflow-net
+
+  # 2. Apache Kafka (Confluent Stable 7.5.0)
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: settleflow-kafka
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    networks:
+      - settleflow-net
+
+  # 3. Kafka UI (동일 유지)
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: settleflow-kafka-ui
+    ports:
+      - "8989:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    depends_on:
+      - kafka
+    networks:
+      - settleflow-net
+
+  # 4. MySQL (동일 유지)
+  mysql:
+    image: mysql:8.0
+    container_name: settleflow-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: settleflow_order
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+    networks:
+      - settleflow-net
+
+  # 5. MongoDB (동일 유지)
+  mongodb:
+    image: mongo:latest
+    container_name: settleflow-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root
+      MONGO_INITDB_DATABASE: settleflow_settlement
+    volumes:
+      - ./data/mongodb:/data/db
+    networks:
+      - settleflow-net
+
+networks:
+  settleflow-net:
+    driver: bridge

@@ -1,0 +1,30 @@
+server:
+  port: 8081  # 정산 서비스와 겹치지 않게 8081 사용
+
+spring:
+  application:
+    name: order-service
+
+  # 1. MySQL 설정 (Docker와 일치시킴)
+  datasource:
+    url: jdbc:mysql://localhost:3306/settleflow_order?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update # 실무에선 validate지만, 편의를 위해 update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  # 2. Kafka Producer 설정
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer # 객체를 JSON으로 직렬화
+    properties:
+      spring.json.trusted.packages: "*" # 모든 패키지의 객체 신뢰 (보안상 제한할 수 있으나 지금은 전체 허용)
