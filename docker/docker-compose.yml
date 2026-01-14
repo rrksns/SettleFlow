@@ -76,7 +76,20 @@ services:
       - ./data/mongodb:/data/db
     networks:
       - settleflow-net
+   #배포
+  jenkins:
+    image: jenkins/jenkins:lts-jdk17
+    container_name: settleflow-jenkins
+    user: root
+    ports:
+      - "9090:8080" # 8080은 흔히 쓰이므로 9090으로 변경
+      - "50000:50000"
+    volumes:
+      - ./jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: always
 
 networks:
   settleflow-net:
     driver: bridge
+
