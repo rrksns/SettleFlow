@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.math.BigDecimal;
@@ -19,6 +20,9 @@ public class Settlement {
     @Id
     private String id;              // MongoDB ID
 
+    // ▼ [핵심] unique = true 추가
+    // 동일한 주문 ID(orderId)가 들어오면 DB 차원에서 튕겨냅니다.
+    @Indexed(unique = true)
     private Long orderId;           // 주문 ID
     private Long userId;            // 유저 ID
 

@@ -9,6 +9,7 @@ spring:
   data:
     mongodb:
       uri: mongodb://root:root@localhost:27017/settleflow_settlement?authSource=admin
+      auto-index-creation: true # ▼ [핵심] 이 줄을 반드시 추가해야 @Indexed가 작동합니다!
 
   # 2. Kafka Consumer 설정
   kafka:
@@ -20,3 +21,7 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "*" # 모든 패키지 신뢰 (DTO 변환 허용)
+          # ▼ [추가] 헤더가 없을 때 변환할 기본 클래스 지정 (패키지명 정확해야 함)
+        spring.json.value.default.type: "com.settleflow.common.event.OrderCreatedEvent"
+          # ▼ [추가] 헤더가 있어도 무시하고 위 설정(default)을 따를지 여부 (일단 false로 두어 헤더 있으면 헤더 우선)
+        spring.json.use.type.headers: false
