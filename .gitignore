@@ -7,12 +7,16 @@ gradle-app.setting
 # Build artifacts
 build/
 */build/
+out/
+*/out/
 dist/
 *.jar
 *.war
 *.ear
 *.zip
 *.tar.gz
+bin/
+*/bin/
 
 # IDE
 .idea/
@@ -89,3 +93,11 @@ yarn.lock
 # Application logs
 logs/
 *.log
+
+# Test results
+**/test-results/
+**/test-output/
+*.hprof
+
+# Embedded MongoDB data
+**/de.flapdoodle/

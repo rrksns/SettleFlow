@@ -14,6 +14,10 @@ allprojects {
     }
 }
 
+// Root 프로젝트는 실행 가능한 jar가 아님
+bootJar.enabled = false
+jar.enabled = true
+
 subprojects {
     apply plugin: 'java'
     apply plugin: 'org.springframework.boot'
@@ -42,6 +46,7 @@ project(':order-service') {
         implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
         implementation 'org.springframework.kafka:spring-kafka' // Kafka
         runtimeOnly 'com.mysql:mysql-connector-j' // MySQL
+        testRuntimeOnly 'com.h2database:h2' // 테스트용 H2 DB
     }
 }
 
@@ -51,6 +56,7 @@ project(':settlement-service') {
         implementation 'org.springframework.boot:spring-boot-starter-web'
         implementation 'org.springframework.boot:spring-boot-starter-data-mongodb' // NoSQL
         implementation 'org.springframework.kafka:spring-kafka' // Kafka
+        testImplementation 'de.flapdoodle.embed:de.flapdoodle.embed.mongo.spring30x:4.11.0'  // Embedded MongoDB for tests
     }
 }
 subprojects {
@@ -62,10 +68,19 @@ subprojects {
         compileOnly 'org.projectlombok:lombok'
         annotationProcessor 'org.projectlombok:lombok'
         testImplementation 'org.springframework.boot:spring-boot-starter-test'
+        testImplementation 'org.springframework.kafka:spring-kafka-test'
+        testImplementation 'org.awaitility:awaitility:4.2.0'  // 비동기 테스트 대기용
 
         // ▼ [추가] Swagger UI (Spring Boot 3.x 용)
         implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
         // ▼ [추가] Redis Reactive가 아닌 일반 Starter (MVC용)
         implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+        // ▼ [추가] Bean Validation (입력 검증)
+        implementation 'org.springframework.boot:spring-boot-starter-validation'
+    }
+
+    // JUnit Platform 설정
+    tasks.named('test') {
+        useJUnitPlatform()
     }
 }

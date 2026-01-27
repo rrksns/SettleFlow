@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: settlement-service-test
+
+  # Embedded MongoDB (테스트용)
+  data:
+    mongodb:
+      host: localhost
+      port: 0  # 랜덤 포트
+      database: test
+      auto-index-creation: true
+    redis:
+      host: localhost
+      port: 6370  # 테스트용 별도 포트 (또는 embedded redis 사용)
+
+  # Kafka 설정 (테스트에서는 EmbeddedKafka 사용)
+  kafka:
+    bootstrap-servers: ${spring.embedded.kafka.brokers}
+    consumer:
+      group-id: settlement-group-test
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+        spring.json.value.default.type: "com.settleflow.common.event.OrderCreatedEvent"
+        spring.json.use.type.headers: false
+
+logging:
+  level:
+    com.settleflow: DEBUG
