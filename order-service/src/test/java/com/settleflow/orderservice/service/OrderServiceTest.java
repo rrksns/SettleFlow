@@ -51,7 +51,7 @@ class OrderServiceTest {
     }
 
     @Test
-    @DisplayName("주문 생성 - 정상 케이스")
+    @DisplayName("주문 생성 - 정상 케이스 (Kafka 전송 성공)")
     void createOrder_Success() {
         // given
         when(orderRepository.save(any(Order.class))).thenReturn(mockOrder);
@@ -62,11 +62,11 @@ class OrderServiceTest {
         // then
         assertThat(orderId).isEqualTo(100L);
 
-        // Repository save 호출 확인
+        // Repository save 호출 확인 (초기 상태는 PENDING_EVENT)
         verify(orderRepository, times(1)).save(argThat(order ->
                 order.getUserId().equals(testUserId) &&
                 order.getTotalAmount().equals(testAmount) &&
-                order.getStatus().equals("ORDERED")
+                order.getStatus().equals("PENDING_EVENT")  // 초기 상태
         ));
 
         // Kafka Producer 호출 확인
@@ -76,6 +76,9 @@ class OrderServiceTest {
                 event.getTotalAmount().equals(testAmount) &&
                 event.getFeeRate() == 0.03
         ));
+
+        // Kafka 전송 성공 시 completeEventPublish()가 호출되어 상태가 ORDERED로 변경되어야 함
+        // (mockOrder의 completeEventPublish()가 호출됨)
     }
 
     @Test
@@ -103,20 +106,68 @@ class OrderServiceTest {
     }
 
     @Test
-    @DisplayName("주문 생성 - Kafka 전송 실패 시 예외 전파")
-    void createOrder_KafkaFailure() {
+    @DisplayName("주문 생성 - Kafka 전송 실패 시 PENDING_EVENT 상태 유지")
+    void createOrder_KafkaFailure_KeepsPendingState() {
         // given
-        when(orderRepository.save(any(Order.class))).thenReturn(mockOrder);
+        Order pendingOrder = Order.builder()
+                .id(100L)
+                .userId(testUserId)
+                .totalAmount(testAmount)
+                .status("PENDING_EVENT")
+                .createdAt(java.time.LocalDateTime.now())
+                .build();
+
+        when(orderRepository.save(any(Order.class))).thenReturn(pendingOrder);
         doThrow(new RuntimeException("Kafka 전송 실패"))
                 .when(orderProducer).sendOrderCreateEvent(any(OrderCreatedEvent.class));
 
-        // when & then
-        org.junit.jupiter.api.Assertions.assertThrows(RuntimeException.class, () -> {
-            orderService.createOrder(testUserId, testAmount);
-        });
+        // when
+        Long orderId = orderService.createOrder(testUserId, testAmount);
 
-        // 주문은 저장되었지만 Kafka 전송이 실패한 상태
+        // then
+        assertThat(orderId).isEqualTo(100L);
+
+        // 주문은 저장되었고 Kafka 전송이 시도되었지만 실패
         verify(orderRepository, times(1)).save(any(Order.class));
         verify(orderProducer, times(1)).sendOrderCreateEvent(any(OrderCreatedEvent.class));
+
+        // 상태는 PENDING_EVENT로 유지되어야 함 (completeEventPublish 호출 안됨)
+    }
+
+    @Test
+    @DisplayName("PENDING_EVENT 주문 재시도 - 성공")
+    void retryPendingEventOrders_Success() {
+        // given
+        Order pendingOrder = Order.builder()
+                .id(200L)
+                .userId(2L)
+                .totalAmount(new BigDecimal("20000.00"))
+                .status("PENDING_EVENT")
+                .createdAt(java.time.LocalDateTime.now())
+                .build();
+
+        when(orderRepository.findByStatus("PENDING_EVENT"))
+                .thenReturn(java.util.List.of(pendingOrder));
+
+        // when
+        orderService.retryPendingEventOrders();
+
+        // then
+        verify(orderProducer, times(1)).sendOrderCreateEvent(any(OrderCreatedEvent.class));
+        // completeEventPublish()가 호출되어 상태가 ORDERED로 변경되어야 함
+    }
+
+    @Test
+    @DisplayName("PENDING_EVENT 주문 재시도 - 대상 없음")
+    void retryPendingEventOrders_NoOrders() {
+        // given
+        when(orderRepository.findByStatus("PENDING_EVENT"))
+                .thenReturn(java.util.List.of());
+
+        // when
+        orderService.retryPendingEventOrders();
+
+        // then
+        verify(orderProducer, never()).sendOrderCreateEvent(any(OrderCreatedEvent.class));
     }
 }

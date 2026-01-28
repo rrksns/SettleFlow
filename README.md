@@ -82,7 +82,53 @@ graph LR
 - **App 레벨**: Consumer 로직에서 DuplicateKeyException을 핸들링하여, 중복 메시지 수신 시 에러가 아닌 WARN 로그를 남기고 정상 처리(Ack) 하도록 구현. 무한 재시도(
   Retry Storm) 방지
 
-### 3. 멀티 모듈(Multi-Module) 구조
+### 3. Kafka 전송 실패 시 자동 재시도 (Event Retry Scheduler)
+
+**문제**
+
+- 주문 생성 후 Kafka 이벤트 발행이 실패하면 정산 서비스가 주문을 인지하지 못해 데이터 불일치 발생
+- Kafka Broker 장애, 네트워크 이슈 등으로 일시적 전송 실패 가능
+
+**해결방안**
+
+- **주문 상태 관리**: `OrderStatus` Enum 도입 (ORDERED, PENDING_EVENT, CANCELLED)
+  - 주문 생성 시 초기 상태는 `PENDING_EVENT`
+  - Kafka 전송 성공 시 `ORDERED`로 변경
+  - 실패 시 `PENDING_EVENT` 유지하여 재시도 대상으로 표시
+- **자동 재시도 스케줄러**: `EventRetryScheduler` 구현
+  - 1분마다 `PENDING_EVENT` 상태의 주문 조회
+  - Kafka 이벤트 재발행 시도
+  - 성공 시 `ORDERED`로 상태 업데이트
+- **데이터 정합성 보장**: 일시적 Kafka 장애에도 최종적으로 모든 주문이 정산 서비스로 전달됨
+
+**핵심 코드**
+```java
+// OrderService.java
+@Transactional
+public Long createOrder(Long userId, BigDecimal amount) {
+    Order order = orderRepository.save(/* PENDING_EVENT 상태 */);
+
+    try {
+        orderProducer.sendOrderCreateEvent(event);
+        order.completeEventPublish();  // ORDERED로 변경
+    } catch (Exception e) {
+        log.error("Kafka 전송 실패, 재시도 대상 등록: {}", order.getId());
+        // PENDING_EVENT 상태 유지
+    }
+    return order.getId();
+}
+
+// EventRetryScheduler.java
+@Scheduled(fixedDelay = 60000)
+public void retryPendingEvents() {
+    List<Order> pendingOrders = orderRepository.findByStatus("PENDING_EVENT");
+    for (Order order : pendingOrders) {
+        // Kafka 재발행 시도...
+    }
+}
+```
+
+### 4. 멀티 모듈(Multi-Module) 구조
 
 **구조**
 
@@ -96,7 +142,7 @@ graph LR
 - 이벤트 스키마(Protocol)를 한곳에서 관리
 - 유지보수성 증대
 
-### 4. Jenkins CI 파이프라인 구축
+### 5. Jenkins CI 파이프라인 구축
 
 **특징**
 

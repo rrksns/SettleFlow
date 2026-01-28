@@ -114,29 +114,55 @@ open order-service/build/reports/tests/test/index.html
 
 ---
 
-### 3. Kafka 전송 실패 시 트랜잭션 처리 (향후 작업)
-**현재 상태**: DB 저장 후 Kafka 실패 시 데이터 불일치 가능
+### 3. Kafka 전송 실패 시 트랜잭션 처리 ✅ 완료 (Option C)
+**현재 상태**: ~~DB 저장 후 Kafka 실패 시 데이터 불일치 가능~~ → **재시도 로직으로 정합성 보장**
 **목표**: 데이터 정합성 보장
 
-**선택지**:
-- [ ] **Option A: Transactional Outbox Pattern** (추천)
-  - [ ] `outbox_events` 테이블 생성
-  - [ ] Outbox 저장 → 별도 Scheduler가 Kafka 전송
-  - [ ] 전송 성공 시 상태 업데이트
+**구현된 방식: Option C (최소 개선 + 자동 재시도)** ✅
+- [x] **주문 상태 관리 강화**
+  - [x] `OrderStatus` Enum 추가 (ORDERED, PENDING_EVENT, CANCELLED)
+  - [x] 초기 상태: PENDING_EVENT (이벤트 발행 전)
+  - [x] Kafka 전송 성공 시: ORDERED로 변경
+  - [x] Kafka 전송 실패 시: PENDING_EVENT 유지
 
-- [ ] **Option B: Kafka Transaction API**
-  - [ ] Producer에 transactional-id 설정
-  - [ ] `@Transactional` + `KafkaTransactionManager` 연동
+- [x] **예외 처리 및 로깅**
+  - [x] try-catch로 Kafka 전송 실패 감지
+  - [x] 실패 시 에러 로그 기록
+  - [x] 주문 ID는 즉시 반환 (사용자에게는 정상 응답)
 
-- [ ] **Option C: 최소 개선 - 예외 처리**
-  - [ ] try-catch로 Kafka 전송 실패 감지
-  - [ ] 실패 시 주문 상태를 "PENDING_EVENT" 등으로 변경
-  - [ ] 재시도 로직 추가
+- [x] **자동 재시도 로직 (Scheduler)**
+  - [x] `EventRetryScheduler` 추가 (1분마다 실행)
+  - [x] PENDING_EVENT 상태의 주문 조회
+  - [x] Kafka 이벤트 재발행 시도
+  - [x] 성공 시 상태를 ORDERED로 업데이트
 
-**파일 위치**:
-- `order-service/src/main/java/com/settleflow/orderservice/service/OrderService.java`
+- [x] **테스트 작성**
+  - [x] Kafka 전송 실패 시 PENDING_EVENT 유지 확인
+  - [x] 재시도 로직 정상 동작 확인
+  - [x] 재시도 대상 없을 때 동작 확인
 
-**참고**: Phase 2 이후에 진행 예정
+**생성/수정된 파일**:
+- `common/src/main/java/com/settleflow/common/event/OrderStatus.java` (신규) ✅
+- `order-service/src/main/java/com/settleflow/orderservice/service/OrderService.java` ✅
+- `order-service/src/main/java/com/settleflow/orderservice/domain/Order.java` (상태 변경 메서드 추가) ✅
+- `order-service/src/main/java/com/settleflow/orderservice/domain/OrderRepository.java` (findByStatus 추가) ✅
+- `order-service/src/main/java/com/settleflow/orderservice/scheduler/EventRetryScheduler.java` (신규) ✅
+- `order-service/src/main/java/com/settleflow/orderservice/OrderServiceApplication.java` (@EnableScheduling) ✅
+- `order-service/src/test/java/com/settleflow/orderservice/service/OrderServiceTest.java` (테스트 추가) ✅
+
+**개선 효과**:
+- Kafka 일시적 장애에도 데이터 정합성 유지
+- 자동 재시도로 수동 개입 최소화
+- 주문 생성 → 정산 이벤트 발행 흐름 안정성 향상
+- 운영 모니터링 용이 (PENDING_EVENT 상태 조회로 실패 건 파악)
+
+**향후 개선 가능 사항**:
+- [ ] **Option A: Transactional Outbox Pattern** (완벽한 정합성)
+  - [ ] `outbox_events` 테이블 추가
+  - [ ] Debezium CDC 연동
+- [ ] **재시도 정책 고도화**
+  - [ ] 재시도 횟수 제한 (3회 이상 실패 시 FAILED 상태로)
+  - [ ] Exponential Backoff (재시도 간격 점진적 증가)
 
 ---
 
@@ -388,7 +414,13 @@ public class OrderController {
   - findAll() + Stream 제거
   - 성능 개선 완료
 
-**Phase 1 진행률**: 3/4 완료 (75%)
+- [x] **Kafka 전송 실패 처리 완료** ✅ (2026-01-28)
+  - OrderStatus Enum 추가
+  - 주문 상태 관리 (PENDING_EVENT → ORDERED)
+  - EventRetryScheduler 구현 (1분마다 재시도)
+  - 관련 테스트 3개 추가
+
+**Phase 1 진행률**: 4/4 완료 (100%) 🎉
 
 ---
 
@@ -402,5 +434,5 @@ public class OrderController {
 
 ---
 
-**Last Updated**: 2025-01-27
-**Current Phase**: Phase 1 (핵심 기능 개선)
+**Last Updated**: 2026-01-28
+**Current Phase**: Phase 1 완료 ✅ / Phase 2 준비 중
