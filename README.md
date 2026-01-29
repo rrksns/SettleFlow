@@ -177,12 +177,22 @@ docker-compose up -d
 # Build (Common 모듈 포함)
 ./gradlew clean build -x test
 
-# Run Order Service (Terminal 1)
-java -jar order-service/build/libs/order-service-0.0.1-SNAPSHOT.jar
+# 환경별 실행 (Spring Profiles)
+# 로컬 환경 (기본값)
+java -jar -Dspring.profiles.active=local order-service/build/libs/order-service-0.0.1-SNAPSHOT.jar
+java -jar -Dspring.profiles.active=local settlement-service/build/libs/settlement-service-0.0.1-SNAPSHOT.jar
 
-# Run Settlement Service (Terminal 2)
-java -jar settlement-service/build/libs/settlement-service-0.0.1-SNAPSHOT.jar
+# 개발 환경
+java -jar -Dspring.profiles.active=dev order-service/build/libs/order-service-0.0.1-SNAPSHOT.jar
+
+# 운영 환경
+java -jar -Dspring.profiles.active=prod order-service/build/libs/order-service-0.0.1-SNAPSHOT.jar
 ```
+
+**환경별 설정 파일**:
+- `application-local.yml`: 로컬 Docker 환경 (상세 로그, 짧은 재시도 간격)
+- `application-dev.yml`: 개발 서버 (환경변수 사용, 보안 강화)
+- `application-prod.yml`: 운영 환경 (Replica Set, Actuator, Prometheus)
 
 ### 3️⃣ API Documentation (Swagger)
 

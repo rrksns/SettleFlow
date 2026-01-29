@@ -1,0 +1,51 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: order-service-dev
+
+  # MySQL 설정 (개발 서버)
+  datasource:
+    url: jdbc:mysql://dev-mysql-server:3306/settleflow_order?useSSL=true&serverTimezone=Asia/Seoul
+    username: ${DB_USERNAME}  # 환경변수로 주입
+    password: ${DB_PASSWORD}  # 환경변수로 주입
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate  # 개발 서버에서는 검증만
+    show-sql: false  # SQL 로그 비활성화
+    properties:
+      hibernate:
+        format_sql: false
+
+  # Kafka Producer 설정 (개발 서버)
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:dev-kafka-server:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: 1  # 리더 파티션만 확인
+      retries: 3
+    properties:
+      spring.json.trusted.packages: "*"
+
+# 정산 설정 (개발 환경)
+settlement:
+  fee-rate: 0.03  # 3%
+  retry-interval-ms: 60000  # 1분
+  initial-delay-ms: 10000  # 10초
+
+# 로깅 설정
+logging:
+  level:
+    com.settleflow: INFO
+    org.springframework.kafka: WARN
+    org.hibernate: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

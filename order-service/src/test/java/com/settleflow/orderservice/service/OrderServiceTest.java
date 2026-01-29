@@ -1,6 +1,7 @@
 package com.settleflow.orderservice.service;
 
 import com.settleflow.common.event.OrderCreatedEvent;
+import com.settleflow.orderservice.config.SettlementProperties;
 import com.settleflow.orderservice.domain.Order;
 import com.settleflow.orderservice.domain.OrderRepository;
 import com.settleflow.orderservice.kafka.OrderProducer;
@@ -29,6 +30,9 @@ class OrderServiceTest {
     @Mock
     private OrderProducer orderProducer;
 
+    @Mock
+    private SettlementProperties settlementProperties;
+
     @InjectMocks
     private OrderService orderService;
 
@@ -48,6 +52,9 @@ class OrderServiceTest {
                 .status("ORDERED")
                 .createdAt(java.time.LocalDateTime.now())
                 .build();
+
+        // SettlementProperties 모킹 (lenient로 설정하여 사용하지 않는 테스트에서도 허용)
+        lenient().when(settlementProperties.getFeeRate()).thenReturn(new BigDecimal("0.03"));
     }
 
     @Test

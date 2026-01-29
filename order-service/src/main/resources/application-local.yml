@@ -1,0 +1,43 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: order-service-local
+
+  # MySQL 설정 (로컬 Docker)
+  datasource:
+    url: jdbc:mysql://localhost:3306/settleflow_order?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update  # 로컬에서는 자동 스키마 업데이트
+    show-sql: true  # SQL 로그 출력
+    properties:
+      hibernate:
+        format_sql: true  # SQL 포맷팅
+
+  # Kafka Producer 설정 (로컬)
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    properties:
+      spring.json.trusted.packages: "*"
+
+# 정산 설정 (로컬 환경 - 빠른 테스트)
+settlement:
+  fee-rate: 0.03  # 3%
+  retry-interval-ms: 30000  # 30초 (로컬 테스트용 짧게 설정)
+  initial-delay-ms: 5000  # 5초
+
+# 로깅 설정
+logging:
+  level:
+    com.settleflow: DEBUG  # 로컬에서는 상세 로그
+    org.springframework.kafka: INFO
+    org.hibernate.SQL: DEBUG

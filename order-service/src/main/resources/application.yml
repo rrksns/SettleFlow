@@ -28,3 +28,9 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer # 객체를 JSON으로 직렬화
     properties:
       spring.json.trusted.packages: "*" # 모든 패키지의 객체 신뢰 (보안상 제한할 수 있으나 지금은 전체 허용)
+
+# 정산 관련 설정
+settlement:
+  fee-rate: 0.03  # 수수료율 3%
+  retry-interval-ms: 60000  # 재시도 간격 1분
+  initial-delay-ms: 10000  # 초기 지연 10초

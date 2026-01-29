@@ -17,9 +17,13 @@ public class EventRetryScheduler {
     private final OrderService orderService;
 
     /**
-     * 1분마다 PENDING_EVENT 상태의 주문에 대해 이벤트 재발행 시도
+     * PENDING_EVENT 상태의 주문에 대해 이벤트 재발행 시도
+     * 재시도 간격과 초기 지연은 application.yml에서 설정 가능
      */
-    @Scheduled(fixedDelay = 60000, initialDelay = 10000) // 1분마다, 최초 10초 후 시작
+    @Scheduled(
+            fixedDelayString = "${settlement.retry-interval-ms}",
+            initialDelayString = "${settlement.initial-delay-ms}"
+    )
     public void retryPendingEvents() {
         log.info("===== 이벤트 재발행 스케줄러 시작 =====");
         try {

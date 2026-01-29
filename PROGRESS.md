@@ -196,45 +196,79 @@ open order-service/build/reports/tests/test/index.html
 
 ## 🔧 Phase 2: 설계 개선 (권장)
 
-### 5. 설정값 외부화
-**현재 상태**: 수수료율 하드코딩 (`feeRate = 0.03`)
+### 5. 설정값 외부화 ✅ 완료
+**현재 상태**: ~~수수료율 하드코딩~~ → **설정 파일로 관리**
 **목표**: 설정 파일로 관리
 
-- [ ] `application.yml`에 추가
+- [x] `application.yml`에 추가 ✅
   ```yaml
   settlement:
     fee-rate: 0.03
+    retry-interval-ms: 60000
+    initial-delay-ms: 10000
   ```
 
-- [ ] `@ConfigurationProperties` 클래스 생성
+- [x] `@ConfigurationProperties` 클래스 생성 ✅
   ```java
   @ConfigurationProperties(prefix = "settlement")
   public class SettlementProperties {
       private BigDecimal feeRate;
+      private Long retryIntervalMs;
+      private Long initialDelayMs;
   }
   ```
 
-- [ ] `OrderService`에 주입하여 사용
+- [x] `OrderService`와 `EventRetryScheduler`에 주입하여 사용 ✅
 
-**파일 위치**:
-- `order-service/src/main/resources/application.yml`
-- `order-service/src/main/java/com/settleflow/orderservice/config/SettlementProperties.java`
+**생성된 파일**:
+- `order-service/src/main/java/com/settleflow/orderservice/config/SettlementProperties.java` ✅
+- `order-service/src/main/resources/application.yml` (설정 추가) ✅
+
+**개선 효과**:
+- 코드 수정 없이 설정값 변경 가능
+- 환경별 다른 수수료율 적용 가능
+- 재시도 간격 유연하게 조정 가능
 
 ---
 
-### 6. 환경별 설정 분리
-**현재 상태**: 단일 `application.yml`
+### 6. 환경별 설정 분리 ✅ 완료
+**현재 상태**: ~~단일 `application.yml`~~ → **환경별 프로파일 분리**
 **목표**: 환경별 프로파일 분리
 
-- [ ] **파일 생성**
-  - [ ] `application-local.yml` (localhost 주소)
-  - [ ] `application-dev.yml` (개발 서버)
-  - [ ] `application-prod.yml` (운영 환경)
+- [x] **order-service 환경별 설정 파일 생성** ✅
+  - [x] `application-local.yml` (로컬 Docker, 상세 로그, 짧은 재시도 간격)
+  - [x] `application-dev.yml` (개발 서버, 환경변수 사용)
+  - [x] `application-prod.yml` (운영 환경, Replica Set, 보안 강화)
 
-- [ ] **실행 시 프로파일 지정**
-  ```bash
-  java -jar -Dspring.profiles.active=local order-service.jar
-  ```
+- [x] **settlement-service 환경별 설정 파일 생성** ✅
+  - [x] `application-local.yml` (로컬 MongoDB/Redis)
+  - [x] `application-dev.yml` (개발 서버)
+  - [x] `application-prod.yml` (운영 환경, Replica Set)
+
+**실행 방법**:
+```bash
+# 로컬 환경
+java -jar -Dspring.profiles.active=local order-service.jar
+
+# 개발 환경
+java -jar -Dspring.profiles.active=dev order-service.jar
+
+# 운영 환경
+java -jar -Dspring.profiles.active=prod order-service.jar
+```
+
+**환경별 차이점**:
+
+| 항목 | Local | Dev | Prod |
+|------|-------|-----|------|
+| DB 접속 | localhost | 환경변수 | 환경변수 + Replica Set |
+| 로그 레벨 | DEBUG | INFO | INFO |
+| SQL 출력 | true | false | false |
+| Kafka Acks | - | 1 | all |
+| 재시도 간격 | 30초 | 60초 | 60초 |
+| Connection Pool | 기본 | 10 | 20 |
+| 압축 | - | - | lz4 |
+| 모니터링 | - | - | Actuator + Prometheus |
 
 ---
 
@@ -422,6 +456,21 @@ public class OrderController {
 
 **Phase 1 진행률**: 4/4 완료 (100%) 🎉
 
+### 2026-01-29
+- [x] **Phase 2-A: 설정값 외부화 완료** ✅
+  - SettlementProperties 클래스 생성
+  - application.yml에 settlement 설정 추가
+  - OrderService와 EventRetryScheduler에 설정값 주입
+  - 하드코딩 제거 (feeRate, retryIntervalMs, initialDelayMs)
+
+- [x] **Phase 2-B: 환경별 설정 분리 완료** ✅
+  - order-service: application-{local,dev,prod}.yml 생성
+  - settlement-service: application-{local,dev,prod}.yml 생성
+  - 환경별 최적화 (로그 레벨, Connection Pool, Kafka 설정)
+  - 운영 환경 보안 강화 (환경변수 사용, Replica Set)
+
+**Phase 2 진행률**: 2/4 완료 (50%)
+
 ---
 
 ## 🔗 참고 자료
@@ -434,5 +483,5 @@ public class OrderController {
 
 ---
 
-**Last Updated**: 2026-01-28
-**Current Phase**: Phase 1 완료 ✅ / Phase 2 준비 중
+**Last Updated**: 2026-01-29
+**Current Phase**: Phase 2 진행 중 (2/4 완료)

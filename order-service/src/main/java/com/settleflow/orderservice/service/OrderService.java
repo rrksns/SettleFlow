@@ -2,6 +2,7 @@ package com.settleflow.orderservice.service;
 
 import com.settleflow.common.event.OrderCreatedEvent;
 import com.settleflow.common.event.OrderStatus;
+import com.settleflow.orderservice.config.SettlementProperties;
 import com.settleflow.orderservice.domain.Order;
 import com.settleflow.orderservice.domain.OrderRepository;
 import com.settleflow.orderservice.kafka.OrderProducer;
@@ -20,6 +21,7 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final OrderProducer orderProducer;
+    private final SettlementProperties settlementProperties;
 
     @Transactional
     public Long createOrder(Long userId, BigDecimal amount) {
@@ -38,7 +40,7 @@ public class OrderService {
                 .orderId(savedOrder.getId())
                 .userId(savedOrder.getUserId())
                 .totalAmount(savedOrder.getTotalAmount())
-                .feeRate(0.03) // 수수료 3% 가정
+                .feeRate(settlementProperties.getFeeRate().doubleValue())
                 .orderedAt(savedOrder.getCreatedAt().toString())
                 .build();
 
@@ -75,7 +77,7 @@ public class OrderService {
                         .orderId(order.getId())
                         .userId(order.getUserId())
                         .totalAmount(order.getTotalAmount())
-                        .feeRate(0.03)
+                        .feeRate(settlementProperties.getFeeRate().doubleValue())
                         .orderedAt(order.getCreatedAt().toString())
                         .build();
 

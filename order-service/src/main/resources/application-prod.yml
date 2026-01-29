@@ -1,0 +1,77 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: order-service-prod
+
+  # MySQL 설정 (운영 서버)
+  datasource:
+    url: jdbc:mysql://${DB_HOST:prod-mysql-server}:3306/settleflow_order?useSSL=true&serverTimezone=Asia/Seoul
+    username: ${DB_USERNAME}  # 환경변수로 주입 (보안)
+    password: ${DB_PASSWORD}  # 환경변수로 주입 (보안)
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20  # 운영 환경 커넥션 풀 크기
+      minimum-idle: 10
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate  # 운영에서는 절대 변경 금지
+    show-sql: false  # 운영에서는 SQL 로그 비활성화
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          batch_size: 20  # 배치 처리 최적화
+
+  # Kafka Producer 설정 (운영 서버)
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:prod-kafka-server-1:9092,prod-kafka-server-2:9092,prod-kafka-server-3:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all  # 모든 복제본 확인 (안정성 최우선)
+      retries: 5
+      compression-type: lz4  # 압축으로 네트워크 트래픽 감소
+      batch-size: 16384
+      linger-ms: 10
+    properties:
+      spring.json.trusted.packages: "*"
+      max.in.flight.requests.per.connection: 5
+
+# 정산 설정 (운영 환경)
+settlement:
+  fee-rate: ${SETTLEMENT_FEE_RATE:0.03}  # 환경변수로 조정 가능
+  retry-interval-ms: 60000  # 1분
+  initial-delay-ms: 10000  # 10초
+
+# 로깅 설정 (운영 환경)
+logging:
+  level:
+    com.settleflow: INFO
+    org.springframework.kafka: WARN
+    org.hibernate: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%X{traceId}] [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: /var/log/order-service/application.log
+    max-size: 100MB
+    max-history: 30
+
+# Actuator 설정 (모니터링)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
